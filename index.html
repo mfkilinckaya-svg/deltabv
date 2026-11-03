@@ -388,7 +388,8 @@ function renderChecks(){
     ["Coskun 2022 CCLM, patient A (Table 1): population model, UL","63.8",(()=>{const x=[58.3,57.5,60.1,61.0,51.3],m=x.reduce((p,q)=>p+q)/5;return m*(1+tvSet(2.21,4.5,z,5)/100);})(),63.8,0.05],
     ["EFLM BV Database RCV calculator: CVI 5.8, CVA 2.4, one-sided 95%, increase","15.7",rcvLog(2.4,5.8,zFor(0.95,1)).up,15.7,0.05],
     ["EFLM RCV calculator: same inputs, decrease","−13.6",rcvLog(2.4,5.8,zFor(0.95,1)).down,-13.6,0.05],
-    ["EFLM RCV calculator: increase at CVI 2.3 and 4.7","8.0 / 13.1",rcvLog(2.4,2.3,zFor(0.95,1)).up+rcvLog(2.4,4.7,zFor(0.95,1)).up,21.1,0.1],
+    ["EFLM RCV calculator: increase at CVI lower CI limit 2.3","8.0",rcvLog(2.4,2.3,zFor(0.95,1)).up,8.0,0.05],
+    ["EFLM RCV calculator: increase at CVI upper CI limit 4.7","13.1",rcvLog(2.4,4.7,zFor(0.95,1)).up,13.1,0.05],
     ["Identity: TVset (n = 1) equals symmetric RCV","= RCV",tvSet(2.42,4.5,z,1),rcvSym(2.42,4.5,z),1e-9],
     ["Identity: log-normal limits symmetric in log space","ln(1+↑) = −ln(1+↓)",Math.log(1+rcvLog(3,10,z).up/100),-Math.log(1+rcvLog(3,10,z).down/100),1e-9],
     ["Coskun 2022 CCLM, patient B (Table 1, 10 results): within-person model, LL","74.5",(()=>{const x=[80.4,76.9,84.9,83.1,79.6,84.0,84.0,81.3,84.0,76.9],n=10,m=x.reduce((p,q)=>p+q)/n,sd=Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(n-1));return m-tInv(0.975,n-1)*sd*Math.sqrt((n+1)/n);})(),74.5,0.1],
@@ -400,7 +401,7 @@ function renderChecks(){
   ];
   let h="<thead><tr><th>Check</th><th>Expected</th><th>Computed</th><th>Result</th></tr></thead><tbody>";
   items.forEach(([lab,exp,got,ref,tol])=>{const ok=Math.abs(got-ref)<=tol+1e-12;
-    h+=`<tr><td style="white-space:normal">${lab}</td><td>${exp}</td><td>${got.toFixed(ref>5?2:4)}</td><td class="${ok?"pass":"fail"}">${ok?"pass":"check"}</td></tr>`;});
+    h+=`<tr><td style="white-space:normal">${lab}</td><td>${exp}</td><td>${got.toFixed(Math.abs(ref)>5?2:4)}</td><td class="${ok?"pass":"fail"}">${ok?"pass":"check"}</td></tr>`;});
   $("checks").innerHTML=h+"</tbody>";
 }
 
