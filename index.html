@@ -81,15 +81,29 @@ ol.refs{margin:0;padding-left:20px;font-size:.85rem;color:var(--muted);display:f
 footer{font-size:.8rem;color:var(--muted)}
 .printonly{display:none}
 @media print{
-  .printonly{display:block;font-size:12px;margin-bottom:8px}
-  body{background:#fff;color:#000;padding:0}
+  @page{size:A4;margin:12mm}
+  .printonly{display:block;font-size:11px;margin-bottom:6px}
+  body{background:#fff;color:#000;padding:0;font-size:11px}
   :root{--bg:#fff;--surface:#fff;--fg:#000;--muted:#333;--line:#bbb;--accent:#0d6a6c;--accent-soft:#fff}
-  button,input[type=file],#copyFallback,#copyMsg{display:none!important}
-  section{break-inside:avoid;border-color:#bbb}
-  .tablewrap{overflow:visible}
-  table{font-size:10px}
-  textarea{border:0;resize:none}
+  .wrap{gap:10px;max-width:none}
+  header .lede{font-size:10px}
+  h1{font-size:1.4rem} h2{font-size:1.05rem}
+  section{padding:10px 12px;gap:8px;border-color:#bbb}
+  button,input[type=file],#copyFallback,#copyMsg,label[for=csvfile],label[for=batch]{display:none!important}
+  .settings{padding:6px 10px}
+  input,select,textarea{padding:3px 6px;font-size:10px}
+  .res .v{font-size:1.05rem}
+  .two{grid-template-columns:1fr 1fr!important;gap:12px}
+  #prChart{max-height:62mm}
+  .tablewrap{overflow:visible;border:0}
+  table{font-size:8.5px;table-layout:auto}
+  th,td{padding:2px 3px;white-space:normal}
+  th{font-size:7.5px;letter-spacing:0}
+  tr{break-inside:avoid}
+  .methods{max-width:none}
+  .formula{font-size:9px;padding:4px 6px}
 }
+
 </style>
 </head>
 <body>
