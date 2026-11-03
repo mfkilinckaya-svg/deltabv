@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DeltaBV Planner</title>
+<meta name="description" content="Plan biological-variation-based delta checks and personalized reference intervals for the LIS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html{color-scheme:light}@media (prefers-color-scheme: dark){html{color-scheme:dark}}
+body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}
+
+/* Layout: one narrow working column; settings bar, then three numbered modules that follow the real workflow (RCV -> prRI -> LIS table), then methods. */
+:root{
+  --bg:#f5f7f6; --surface:#ffffff; --fg:#17201f; --muted:#5b6866; --line:#d7dfdd;
+  --accent:#0d6a6c; --accent-soft:#e1efee; --up:#a8402a; --down:#2b5b9e; --ok:#2f7a3d; --warn:#9a6a00;
+  --display:"Literata", Georgia, "Times New Roman", serif;
+  --body:"Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111817; --surface:#18211f; --fg:#e6ecea; --muted:#9aa9a6; --line:#2c3a37;
+  --accent:#5cc0bd; --accent-soft:#1d3433; --up:#ec8a73; --down:#86aef0; --ok:#7cc98a; --warn:#e2b54c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111817; --surface:#18211f; --fg:#e6ecea; --muted:#9aa9a6; --line:#2c3a37;
+  --accent:#5cc0bd; --accent-soft:#1d3433; --up:#ec8a73; --down:#86aef0; --ok:#7cc98a; --warn:#e2b54c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--display);font-weight:650;text-wrap:balance;margin:0}
+h1{font-size:2rem;letter-spacing:-.01em}
+h2{font-size:1.35rem}
+h3{font-size:1.02rem;font-weight:500}
+p{margin:0}
+.lede{color:var(--muted);max-width:68ch}
+header{display:flex;flex-direction:column;gap:8px}
+.tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+section{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.sechead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.step{font-family:var(--mono);font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);letter-spacing:.02em}
+input,select,textarea{font:inherit;font-size:.95rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+input[type=number],textarea.mono{font-family:var(--mono)}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-size:.9rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;padding:8px 14px;cursor:pointer}
+button:hover{background:var(--accent);color:var(--surface)}
+.settings{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.settings label{min-width:150px;flex:1}
+.zout{font-family:var(--mono);font-size:.95rem;padding-bottom:8px}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.res{border-top:3px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.res .k{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.res .v{font-family:var(--mono);font-size:1.45rem;font-variant-numeric:tabular-nums}
+.res .s{font-size:.82rem;color:var(--muted);font-family:var(--mono)}
+.up{color:var(--up)} .down{color:var(--down)}
+.verdict{border-radius:6px;padding:10px 14px;font-size:.92rem;border:1px solid var(--line)}
+.verdict.sig{border-color:var(--up);color:var(--up)}
+.verdict.ns{border-color:var(--ok);color:var(--ok)}
+.note{font-size:.82rem;color:var(--warn)}
+.small{font-size:.82rem;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;background:var(--bg)}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+td{font-family:var(--mono)}
+td:first-child{font-family:var(--body)}
+tr:last-child td{border-bottom:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+svg{width:100%;height:auto;display:block}
+.formula{font-family:var(--mono);font-size:.86rem;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;white-space:pre}
+.methods{display:flex;flex-direction:column;gap:12px;max-width:72ch}
+ol.refs{margin:0;padding-left:20px;font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.pass{color:var(--ok);font-weight:600} .fail{color:var(--up);font-weight:600}
+footer{font-size:.8rem;color:var(--muted)}
+.printonly{display:none}
+@media print{
+  .printonly{display:block;font-size:12px;margin-bottom:8px}
+  body{background:#fff;color:#000;padding:0}
+  :root{--bg:#fff;--surface:#fff;--fg:#000;--muted:#333;--line:#bbb;--accent:#0d6a6c;--accent-soft:#fff}
+  button,input[type=file],#copyFallback,#copyMsg{display:none!important}
+  section{break-inside:avoid;border-color:#bbb}
+  .tablewrap{overflow:visible}
+  table{font-size:10px}
+  textarea{border:0;resize:none}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<div id="printHead" class="printonly"><strong>DeltaBV Planner report</strong> · <span id="printDate"></span> · <span id="printSettings"></span></div>
+<header>
+  <span class="tag">Biological variation · delta checks · personalized reference intervals</span>
+  <h1>DeltaBV Planner</h1>
+  <p class="lede">Plan delta-check limits and personalized reference intervals from within-subject biological variation (CV<sub>I</sub>) and your laboratory's analytical imprecision (CV<sub>A</sub>). Everything runs in the browser; no data leave the page. Values shown on load are worked examples.</p>
+</header>
+
+<div class="settings" aria-label="Probability settings">
+  <label for="prob">Probability
+    <select id="prob">
+      <option value="0.95" selected>95%</option>
+      <option value="0.99">99%</option>
+      <option value="0.90">90%</option>
+      <option value="custom">Custom…</option>
+    </select>
+  </label>
+  <label for="probc" id="probcWrap" hidden>Custom probability (0.5–0.9999)
+    <input id="probc" type="number" step="0.001" min="0.5" max="0.9999" value="0.975">
+  </label>
+  <label for="sides">Direction
+    <select id="sides">
+      <option value="2" selected>Two-sided (any change)</option>
+      <option value="1">One-sided (rise only or fall only)</option>
+    </select>
+  </label>
+  <div class="zout" id="zout">Z = 1.960</div>
+</div>
+
+<!-- 1 RCV -->
+<section aria-labelledby="h1rcv">
+  <div class="sechead"><span class="step">1</span><h2 id="h1rcv">Reference change value</h2></div>
+  <div class="grid">
+    <label for="an">Measurand<input id="an" value="Creatinine"></label>
+    <label for="cva"><span>CV<sub>A</sub> (%)</span><input id="cva" type="number" step="0.01" min="0" value="2.42"></label>
+    <label for="cvi"><span>CV<sub>I</sub> (%)</span><input id="cvi" type="number" step="0.01" min="0" value="4.5"></label>
+    <label for="cvil"><span>CV<sub>I</sub> 95% CI, lower</span><input id="cvil" type="number" step="0.01" min="0" value="4.2"></label>
+    <label for="cviu"><span>CV<sub>I</sub> 95% CI, upper</span><input id="cviu" type="number" step="0.01" min="0" value="4.8"></label>
+  </div>
+  <p class="small">Example: CV<sub>I</sub> 4.5% and CV<sub>A</sub> 2.42% are the creatinine figures used by Coşkun et al. (2021). The CI here is illustrative; take the current estimate and its CI from the EFLM Biological Variation Database.</p>
+  <p id="ciWarn" class="note" hidden></p>
+  <div class="results" id="rcvOut"></div>
+  <div class="grid">
+    <label for="r1">Previous result<input id="r1" type="number" step="any" value="85"></label>
+    <label for="r2">Current result<input id="r2" type="number" step="any" value="99"></label>
+  </div>
+  <div id="pairOut" class="verdict"></div>
+</section>
+
+<!-- 2 prRI -->
+<section aria-labelledby="h2pr">
+  <div class="sechead"><span class="step">2</span><h2 id="h2pr">Personalized reference interval</h2></div>
+  <p class="small">The population model uses CV<sub>A</sub>, CV<sub>I</sub> and Z from above. The within-person model uses only the patient's own results: their SD (which already contains analytical variation) and a t value with n − 1 degrees of freedom. Enter previous results from a steady state, same method or harmonized methods.</p>
+  <div class="two">
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <label for="prModel">Model
+        <select id="prModel">
+          <option value="cvi" selected>Population CVI (Coşkun 2021; n ≥ 3)</option>
+          <option value="cvp">Within-person SD, t-distribution (Coskun 2022; n ≥ 5)</option>
+        </select>
+      </label>
+      <label for="prev">Previous results (comma, space or line separated)
+        <textarea id="prev" class="mono" rows="3">1.01, 0.91, 0.97</textarea>
+      </label>
+      <label for="newr">New result to evaluate (optional)<input id="newr" type="number" step="any" value="1.12"></label>
+      <div class="results" id="prOut"></div>
+      <div id="prVerdict" class="verdict"></div>
+      <p id="prNote" class="note" hidden></p>
+    </div>
+    <div style="min-width:0"><svg id="prChart" viewBox="0 0 420 240" role="img" aria-label="Previous results with personalized reference interval"></svg></div>
+  </div>
+</section>
+
+<!-- 3 Batch -->
+<section aria-labelledby="h3b">
+  <div class="sechead"><span class="step">3</span><h2 id="h3b">Delta-check table for the LIS</h2></div>
+  <p class="small">One measurand per line: <code>measurand, unit, CVA, CVI, CVI_lower, CVI_upper</code>. CI columns may be left empty. Paste rows from your own biological variation sheet.</p>
+  <label for="batch">Measurands
+    <textarea id="batch" class="mono" rows="8"></textarea>
+  </label>
+  <div class="row">
+    <label for="npr" style="flex:0 0 200px">Extra n for prRI column<input id="npr" type="number" min="1" step="1" value="3"></label>
+    <label for="csvfile" style="flex:0 0 auto">Load CSV file<input id="csvfile" type="file" accept=".csv,text/csv,text/plain"></label>
+    <button id="copyCsv" type="button">Copy table as CSV</button>
+    <button id="dlCsv" type="button">Download CSV</button>
+    <button id="printRep" type="button">Print / save PDF report</button>
+    <span id="copyMsg" class="small" aria-live="polite"></span>
+  </div>
+  <div class="tablewrap"><table id="btable"></table></div>
+  <textarea id="copyFallback" class="mono" rows="4" hidden aria-label="Table as CSV"></textarea>
+  <p class="small">Demo rows use CV<sub>I</sub> values as cited by Coşkun et al. (2021) from the EFLM database; CV<sub>A</sub> values and CV<sub>I</sub> confidence intervals are illustrative. Replace them with current EFLM estimates and your own long-term CV<sub>A</sub>. "RCV range" shows the symmetric RCV across the CV<sub>I</sub> confidence interval. TVset columns are the prRI rule for the LIS: with n previous steady-state results, prRI = mean × (1 ± TVset/100), population CV<sub>I</sub> model.</p>
+</section>
+
+<!-- 4 Methods -->
+<section aria-labelledby="h4m">
+  <div class="sechead"><span class="step">4</span><h2 id="h4m">Methods and built-in checks</h2></div>
+  <div class="methods">
+    <h3>Symmetric RCV (Harris &amp; Yasaka; Fraser)</h3>
+    <div class="formula">RCV = √2 · Z · √(CVA² + CVI²)</div>
+    <h3>Asymmetric, log-normal RCV (Fokkema et al.)</h3>
+    <div class="formula">σ = √( ln(1+CVA²) + ln(1+CVI²) )      (CVs as fractions)
+RCV↑ = exp( +√2 · Z · σ ) − 1
+RCV↓ = exp( −√2 · Z · σ ) − 1</div>
+    <h3>Uncertainty from the CV<sub>I</sub> estimate</h3>
+    <p>RCV is recomputed at the lower and upper CI limits of CV<sub>I</sub>. A wide range means the delta-check limit itself is uncertain and the CV<sub>I</sub> estimate deserves scrutiny before it goes into the LIS.</p>
+    <h3>Personalized reference interval (Coşkun et al. 2021)</h3>
+    <div class="formula">HSP   = mean of n previous results
+TVset = Z · √((n+1)/n) · √(CVI² + CVA²)
+prRI  = HSP ± HSP · TVset / 100</div>
+    <h3>Within-person model (Coskun et al. 2022)</h3>
+    <div class="formula">SD_TV = SD of the n previous results
+prRI  = HSP ± t(1−α/2, n−1) · SD_TV · √((n+1)/n)</div>
+    <p>Needs at least five steady-state results; the patient's own SD replaces the population CV<sub>I</sub> and CV<sub>A</sub>.</p>
+    <p>With n = 1 and a two-sided Z, TV<sub>set</sub> equals the symmetric RCV. Coşkun et al. recommend at least three previous steady-state results.</p>
+    <h3>Checks against published values</h3>
+    <p class="small">Published values are compared within ±0.05 (±0.1 µmol/L for patient B, where the source rounds SD and half-width) to allow for rounding in the source.</p>
+    <div class="tablewrap"><table id="checks"></table></div>
+  </div>
+  <ol class="refs">
+    <li>Harris EK, Yasaka T. On the calculation of a "reference change" for comparing two consecutive measurements. Clin Chem 1983;29:25–30.</li>
+    <li>Fraser CG. Reference change values. Clin Chem Lab Med 2012;50:807–12.</li>
+    <li>Fokkema MR, Herrmann Z, Muskiet FA, Moecks J. Reference change values for brain natriuretic peptides revisited. Clin Chem 2006;52:1602–3.</li>
+    <li>Coşkun A, Sandberg S, Unsal I, et al. Personalized reference intervals in laboratory medicine: a new model based on within-subject biological variation. Clin Chem 2021;67:374–84. doi:10.1093/clinchem/hvaa233</li>
+    <li>Coskun A, Sandberg S, Unsal I, et al. Personalized reference intervals – statistical approaches and considerations. Clin Chem Lab Med 2022;60:629–35. doi:10.1515/cclm-2021-1066</li>
+    <li>Çubukçu HC, Carobene A, Aarsand AK, et al. The BV calculator: a free, open-source web app for estimation of within-subject and between-subject biological variation. Clin Chem Lab Med 2026;64:2854–69. doi:10.1515/cclm-2026-0863</li>
+    <li>Aarsand AK, Fernández-Calle P, Webster C, et al. The EFLM Biological Variation Database. https://biologicalvariation.eu/</li>
+  </ol>
+</section>
+
+<footer>DeltaBV Planner · draft v0.1 · for laboratory planning and education; verify limits locally before clinical use.</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const SQ2=Math.SQRT2;
+function normInv(p){ // Acklam's algorithm
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425,ph=1-pl;let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p<=ph){q=p-0.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+  q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+function zFor(p,sides){return sides===2?normInv(1-(1-p)/2):normInv(p);}
+function rcvSym(cva,cvi,z){return SQ2*z*Math.hypot(cva,cvi);}
+function rcvLog(cva,cvi,z){const s=Math.sqrt(Math.log(1+(cva/100)**2)+Math.log(1+(cvi/100)**2));return{up:(Math.exp(SQ2*z*s)-1)*100,down:(Math.exp(-SQ2*z*s)-1)*100};}
+function lgam(x){const g=7,c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(x<0.5)return Math.log(Math.PI/Math.sin(Math.PI*x))-lgam(1-x);x-=1;let a=c[0];const t=x+g+0.5;for(let i=1;i<9;i++)a+=c[i]/(x+i);return 0.5*Math.log(2*Math.PI)+(x+0.5)*Math.log(t)-t+Math.log(a);}
+function betacf(a,b,x){const MAXIT=300,EPS=3e-14,FPMIN=1e-300;let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;if(Math.abs(d)<FPMIN)d=FPMIN;d=1/d;let h=d;
+  for(let m=1;m<=MAXIT;m++){const m2=2*m;let aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<EPS)break;}return h;}
+function ibeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;const bt=Math.exp(lgam(a+b)-lgam(a)-lgam(b)+a*Math.log(x)+b*Math.log(1-x));
+  return x<(a+1)/(a+b+2)?bt*betacf(a,b,x)/a:1-bt*betacf(b,a,1-x)/b;}
+function tCdf(t,df){const x=df/(df+t*t),p=0.5*ibeta(x,df/2,0.5);return t>=0?1-p:p;}
+function tInv(p,df){let lo=0,hi=1e4;for(let i=0;i<200;i++){const m=(lo+hi)/2;if(tCdf(m,df)<p)lo=m;else hi=m;}return (lo+hi)/2;}
+function tvSet(cva,cvi,z,n){return z*Math.sqrt((n+1)/n)*Math.hypot(cva,cvi);}
+window.DeltaBV={normInv,zFor,rcvSym,rcvLog,tvSet,tInv};
+const num=v=>{const x=parseFloat(v);return Number.isFinite(x)?x:NaN};
+const f=(x,d=1)=>Number.isFinite(x)?x.toFixed(d):"–";
+const sg=x=>(x>0?"+":"")+f(x);
+function sig(x){const a=Math.abs(x);return a>=100?3:a>=10?3:a>=1?3:4;}
+function fmtVal(x){if(!Number.isFinite(x))return"–";const a=Math.abs(x);return x.toFixed(a>=100?1:a>=10?2:a>=1?3:4);}
+
+function getZ(){
+  const sel=$("prob").value;$("probcWrap").hidden=sel!=="custom";
+  let p=sel==="custom"?num($("probc").value):parseFloat(sel);
+  if(!(p>0.5&&p<1))p=0.95;
+  const sides=parseInt($("sides").value,10);
+  const z=zFor(p,sides);$("zout").textContent="Z = "+z.toFixed(3);
+  return{z,p,sides};
+}
+
+function renderRCV(Z){
+  const cva=num($("cva").value),cvi=num($("cvi").value),lo=num($("cvil").value),hi=num($("cviu").value);
+  const s=rcvSym(cva,cvi,Z.z),L=rcvLog(cva,cvi,Z.z);
+  const sLo=rcvSym(cva,lo,Z.z),sHi=rcvSym(cva,hi,Z.z);
+  const lLo=rcvLog(cva,lo,Z.z),lHi=rcvLog(cva,hi,Z.z);
+  const ci=Number.isFinite(lo)&&Number.isFinite(hi);
+  const two=Z.sides===2;
+  const w=$("ciWarn");const bad=ci&&(lo>hi||cvi<lo||cvi>hi);w.hidden=!bad;
+  if(bad)w.textContent=lo>hi?"Check the CVI confidence interval: the lower limit is above the upper limit.":`Check the CVI values: the point estimate (${f(cvi)}%) lies outside its own confidence interval (${f(lo)}–${f(hi)}%).`;
+  $("rcvOut").innerHTML=
+   `<div class="res"><span class="k">Symmetric RCV</span><span class="v">±${f(s)}%</span><span class="s">${ci?`CVI CI → ${f(sLo)} to ${f(sHi)}%`:"no CVI CI given"}</span></div>
+    <div class="res"><span class="k">Log-normal, rise</span><span class="v up">${sg(L.up)}%</span><span class="s">${ci?`CVI CI → ${sg(lLo.up)} to ${sg(lHi.up)}%`:""}</span></div>
+    <div class="res"><span class="k">Log-normal, fall</span><span class="v down">${sg(L.down)}%</span><span class="s">${ci?`CVI CI → ${sg(lHi.down)} to ${sg(lLo.down)}%`:""}</span></div>
+    <div class="res"><span class="k">Index check</span><span class="v">${f(Math.hypot(cva,cvi))}%</span><span class="s">combined CV √(CVA²+CVI²)</span></div>`;
+  const r1=num($("r1").value),r2=num($("r2").value),el=$("pairOut");
+  if(Number.isFinite(r1)&&Number.isFinite(r2)&&r1!==0){
+    const ch=(r2-r1)/r1*100;
+    const symSig=Math.abs(ch)>s;
+    const logSig=ch>0?ch>L.up:ch<L.down;
+    const any=symSig||logSig;
+    el.className="verdict "+(any?"sig":"ns");
+    el.innerHTML=`${$("an").value||"Change"}: ${fmtVal(r1)} → ${fmtVal(r2)} is <strong>${sg(ch)}%</strong>. Symmetric RCV: ${symSig?"exceeded":"not exceeded"}. Log-normal RCV: ${logSig?"exceeded":"not exceeded"}.${two?"":" One-sided Z applies only in the direction you were watching for."}`;
+  }else{el.className="verdict";el.textContent="Enter a previous and a current result to test a change.";}
+}
+
+function parseList(t){return t.split(/[\s,;]+/).map(num).filter(Number.isFinite);}
+
+function renderPR(Z){
+  const cva=num($("cva").value),cvi=num($("cvi").value);
+  const xs=parseList($("prev").value),n=xs.length,nr=num($("newr").value);
+  const note=$("prNote");
+  if(!n){$("prOut").innerHTML="";$("prVerdict").textContent="Enter at least one previous result.";$("prVerdict").className="verdict";$("prChart").innerHTML="";note.hidden=true;return;}
+  const hsp=xs.reduce((a,b)=>a+b,0)/n;
+  const model=$("prModel").value;
+  let tv,half,mult,multLab;
+  if(model==="cvp"){
+    if(n<5){$("prOut").innerHTML="";$("prVerdict").className="verdict";$("prVerdict").textContent="The within-person model needs at least five previous results.";$("prChart").innerHTML="";note.hidden=true;return;}
+    const sd=Math.sqrt(xs.reduce((a,b)=>a+(b-hsp)**2,0)/(n-1));
+    const q=Z.sides===2?1-(1-Z.p)/2:Z.p;mult=tInv(q,n-1);multLab=`t(${n-1}) = ${mult.toFixed(3)}, SD = ${fmtVal(sd)}`;
+    half=mult*sd*Math.sqrt((n+1)/n);tv=half/hsp*100;
+  }else{tv=tvSet(cva,cvi,Z.z,n);half=hsp*tv/100;multLab=`Z = ${Z.z.toFixed(3)}, √((n+1)/n) = ${Math.sqrt((n+1)/n).toFixed(3)}`;}
+  const ll=hsp-half,ul=hsp+half;
+  $("prOut").innerHTML=
+   `<div class="res"><span class="k">HSP (n = ${n})</span><span class="v">${fmtVal(hsp)}</span><span class="s">mean of previous results</span></div>
+    <div class="res"><span class="k">TV<sub>set</sub></span><span class="v">±${fmtVal(half)}</span><span class="s">±${f(tv,2)}% · ${multLab}</span></div>
+    <div class="res"><span class="k" style="text-transform:none">prRI</span><span class="v">${fmtVal(ll)} – ${fmtVal(ul)}</span><span class="s">lower – upper limit</span></div>`;
+  const v=$("prVerdict");
+  if(Number.isFinite(nr)){
+    const inside=nr>=ll&&nr<=ul;
+    v.className="verdict "+(inside?"ns":"sig");
+    v.innerHTML=`New result ${fmtVal(nr)} lies <strong>${inside?"inside":(nr>ul?"above":"below")}</strong> the personalized reference interval.`;
+  }else{v.className="verdict";v.textContent="Add a new result to see where it falls.";}
+  note.hidden=model==="cvp"||n>=3;note.textContent="Fewer than three previous results: the interval is wide and less reliable (Coşkun et al. recommend n ≥ 3).";
+  drawChart(xs,hsp,ll,ul,Number.isFinite(nr)?nr:null);
+}
+
+function drawChart(xs,hsp,ll,ul,nr){
+  const W=420,H=240,ml=52,mr=16,mt=16,mb=34;
+  const vals=[...xs,ll,ul];if(nr!==null)vals.push(nr);
+  let lo=Math.min(...vals),hi=Math.max(...vals);const pad=(hi-lo)*0.12||Math.abs(hi)*0.05||1;lo-=pad;hi+=pad;
+  const N=xs.length+(nr!==null?1:0);
+  const X=i=>ml+(N===1?(W-ml-mr)/2:i*(W-ml-mr)/(N-1));
+  const Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
+  let g="";
+  const ticks=4;for(let i=0;i<=ticks;i++){const v=lo+(hi-lo)*i/ticks,y=Y(v);
+    g+=`<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${ml-6}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="var(--mono)">${fmtVal(v)}</text>`;}
+  g+=`<rect x="${ml}" y="${Y(ul)}" width="${W-ml-mr}" height="${Y(ll)-Y(ul)}" fill="var(--accent)" fill-opacity="0.13"/>`;
+  g+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(hsp)}" y2="${Y(hsp)}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  g+=`<text x="${ml+4}" y="${Y(ul)-4}" text-anchor="start" font-size="10" fill="var(--accent)" font-family="var(--mono)">UL ${fmtVal(ul)}</text>`;
+  g+=`<text x="${ml+4}" y="${Y(ll)+12}" text-anchor="start" font-size="10" fill="var(--accent)" font-family="var(--mono)">LL ${fmtVal(ll)}</text>`;
+  xs.forEach((v,i)=>{g+=`<circle cx="${X(i)}" cy="${Y(v)}" r="4.5" fill="var(--fg)"/><text x="${X(i)}" y="${H-mb+18}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">${i+1}</text>`;});
+  if(nr!==null){const i=xs.length,out=nr<ll||nr>ul;
+    g+=`<circle cx="${X(i)}" cy="${Y(nr)}" r="6" fill="${out?"var(--up)":"var(--ok)"}"/><text x="${X(i)}" y="${H-mb+18}" text-anchor="middle" font-size="10" fill="var(--fg)" font-family="var(--mono)">new</text>`;}
+  g+=`<text x="${ml}" y="${H-4}" font-size="10" fill="var(--muted)" font-family="var(--body)">Sample order · shaded band = prRI · dashed line = HSP</text>`;
+  $("prChart").innerHTML=g;
+}
+
+const DEMO=`Creatinine, µmol/L, 2.4, 4.5, 4.2, 4.8
+Glucose, mmol/L, 1.8, 5.0, 4.7, 5.3
+Potassium, mmol/L, 1.5, 4.1, 3.8, 4.4
+Sodium, mmol/L, 0.8, 0.5, 0.4, 0.6
+ALT, U/L, 3.0, 10.4, 9.5, 11.4
+Haemoglobin, g/L, 1.2, 2.7, 2.5, 2.9
+Leukocytes, 10^9/L, 2.3, 10.3, 9.6, 11.1
+Platelets, 10^9/L, 2.5, 5.6, 5.2, 6.0`;
+let lastCsv="";
+function renderBatch(Z){
+  const n=Math.max(1,parseInt($("npr").value,10)||3);
+  const rows=$("batch").value.split(/\n/).map(l=>l.split(",").map(s=>s.trim())).filter(r=>r[0]);
+  const NS=[2,3,5,10];if(!NS.includes(n))NS.push(n);NS.sort((a,b)=>a-b);
+  const hdr=["Measurand","Unit","CVA %","CVI %","RCV ±%","RCV range %","Log RCV ↑%","Log RCV ↓%",...NS.map(k=>`TVset n=${k} %`)];
+  let html="<thead><tr>"+hdr.map(h=>`<th>${h}</th>`).join("")+"</tr></thead><tbody>";
+  const csv=[["measurand","unit","CVA","CVI","CVI_lower","CVI_upper","Z","RCV_sym","RCV_sym_lo","RCV_sym_hi","RCV_up","RCV_down",...NS.map(k=>`TVset_n${k}`)].join(",")];
+  rows.forEach(r=>{
+    const cva=num(r[2]),cvi=num(r[3]),lo=num(r[4]),hi=num(r[5]);
+    if(!Number.isFinite(cva)||!Number.isFinite(cvi)){html+=`<tr><td>${esc(r[0])}</td><td colspan="${hdr.length-1}" style="text-align:left;font-family:var(--body)" class="small">Needs numeric CVA and CVI</td></tr>`;return;}
+    const s=rcvSym(cva,cvi,Z.z),L=rcvLog(cva,cvi,Z.z),tvs=NS.map(k=>tvSet(cva,cvi,Z.z,k));
+    const ci=Number.isFinite(lo)&&Number.isFinite(hi);
+    const sl=ci?rcvSym(cva,lo,Z.z):NaN,sh=ci?rcvSym(cva,hi,Z.z):NaN;
+    html+=`<tr><td>${esc(r[0])}</td><td>${esc(r[1]||"")}</td><td>${f(cva)}</td><td>${f(cvi)}</td><td>${f(s)}</td><td>${ci?((lo>hi||cvi<lo||cvi>hi)?"⚠ CI check":f(sl)+"–"+f(sh)):"–"}</td><td class="up">${sg(L.up)}</td><td class="down">${sg(L.down)}</td>${tvs.map(t=>`<td>${f(t)}</td>`).join("")}</tr>`;
+    csv.push([q(r[0]),q(r[1]||""),cva,cvi,ci?lo:"",ci?hi:"",Z.z.toFixed(3),s.toFixed(2),ci?sl.toFixed(2):"",ci?sh.toFixed(2):"",L.up.toFixed(2),L.down.toFixed(2),...tvs.map(t=>t.toFixed(2))].join(","));
+  });
+  $("btable").innerHTML=html+"</tbody>";lastCsv=csv.join("\n");
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function q(s){return /[",]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;}
+
+function renderChecks(){
+  const z=1.959964;
+  const items=[
+    ["Coşkun 2021, Table 2: creatinine, CVI 4.5, CVA 2.25, n = 1","TVset 13.95%",tvSet(2.25,4.5,z,1),13.95,0.05],
+    ["Coşkun 2021, Table 2: creatinine, CVI 4.5, CVA 2.25, n = 3","TVset 11.39%",tvSet(2.25,4.5,z,3),11.39,0.05],
+    ["Coşkun 2021, Table 2: creatinine, CVI 4.5, CVA 2.42, n = 3","TVset 11.55%",tvSet(2.42,4.5,z,3),11.55,0.05],
+    ["Coşkun 2021, Table 2: leukocytes, CVI 10.3, CVA 2.27, n = 10","TVset 21.68%",tvSet(2.27,10.3,z,10),21.68,0.05],
+    ["Coskun 2022 CCLM, patient A (Table 1, 5 results): population model, LL","51.4",(()=>{const x=[58.3,57.5,60.1,61.0,51.3],m=x.reduce((p,q)=>p+q)/5;return m*(1-tvSet(2.21,4.5,z,5)/100);})(),51.4,0.05],
+    ["Coskun 2022 CCLM, patient A (Table 1): population model, UL","63.8",(()=>{const x=[58.3,57.5,60.1,61.0,51.3],m=x.reduce((p,q)=>p+q)/5;return m*(1+tvSet(2.21,4.5,z,5)/100);})(),63.8,0.05],
+    ["EFLM BV Database RCV calculator: CVI 5.8, CVA 2.4, one-sided 95%, increase","15.7",rcvLog(2.4,5.8,zFor(0.95,1)).up,15.7,0.05],
+    ["EFLM RCV calculator: same inputs, decrease","−13.6",rcvLog(2.4,5.8,zFor(0.95,1)).down,-13.6,0.05],
+    ["EFLM RCV calculator: increase at CVI 2.3 and 4.7","8.0 / 13.1",rcvLog(2.4,2.3,zFor(0.95,1)).up+rcvLog(2.4,4.7,zFor(0.95,1)).up,21.1,0.1],
+    ["Identity: TVset (n = 1) equals symmetric RCV","= RCV",tvSet(2.42,4.5,z,1),rcvSym(2.42,4.5,z),1e-9],
+    ["Identity: log-normal limits symmetric in log space","ln(1+↑) = −ln(1+↓)",Math.log(1+rcvLog(3,10,z).up/100),-Math.log(1+rcvLog(3,10,z).down/100),1e-9],
+    ["Coskun 2022 CCLM, patient B (Table 1, 10 results): within-person model, LL","74.5",(()=>{const x=[80.4,76.9,84.9,83.1,79.6,84.0,84.0,81.3,84.0,76.9],n=10,m=x.reduce((p,q)=>p+q)/n,sd=Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(n-1));return m-tInv(0.975,n-1)*sd*Math.sqrt((n+1)/n);})(),74.5,0.1],
+    ["Coskun 2022 CCLM, patient B (Table 1): within-person model, UL","88.5",(()=>{const x=[80.4,76.9,84.9,83.1,79.6,84.0,84.0,81.3,84.0,76.9],n=10,m=x.reduce((p,q)=>p+q)/n,sd=Math.sqrt(x.reduce((p,q)=>p+(q-m)**2,0)/(n-1));return m+tInv(0.975,n-1)*sd*Math.sqrt((n+1)/n);})(),88.5,0.1],
+    ["t quantile, 0.975 with 9 df","2.2622",tInv(0.975,9),2.262157,1e-5],
+    ["t quantile, 0.975 with 4 df","2.7764",tInv(0.975,4),2.776445,1e-5],
+    ["Z for 95% two-sided","1.960",zFor(0.95,2),1.959964,1e-5],
+    ["Z for 95% one-sided","1.645",zFor(0.95,1),1.644854,1e-5]
+  ];
+  let h="<thead><tr><th>Check</th><th>Expected</th><th>Computed</th><th>Result</th></tr></thead><tbody>";
+  items.forEach(([lab,exp,got,ref,tol])=>{const ok=Math.abs(got-ref)<=tol+1e-12;
+    h+=`<tr><td style="white-space:normal">${lab}</td><td>${exp}</td><td>${got.toFixed(ref>5?2:4)}</td><td class="${ok?"pass":"fail"}">${ok?"pass":"check"}</td></tr>`;});
+  $("checks").innerHTML=h+"</tbody>";
+}
+
+function all(){const Z=getZ();renderRCV(Z);renderPR(Z);renderBatch(Z);}
+$("batch").value=DEMO;
+["prModel","prob","probc","sides","an","cva","cvi","cvil","cviu","r1","r2","prev","newr","batch","npr"].forEach(id=>$(id).addEventListener("input",all));
+$("prob").addEventListener("change",all);$("prModel").addEventListener("change",all);$("sides").addEventListener("change",all);
+$("csvfile").addEventListener("change",e=>{const file=e.target.files&&e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{let t=String(rd.result).replace(/\r/g,"").replace(/^\uFEFF/,"");const ls=t.split("\n");if(ls[0]&&/measurand/i.test(ls[0]))ls.shift();$("batch").value=ls.filter(l=>l.trim()).join("\n");all();$("copyMsg").textContent="Loaded "+file.name;};rd.readAsText(file);});
+$("dlCsv").addEventListener("click",()=>{
+  const d=new Date().toISOString().slice(0,10);
+  const blob=new Blob(["\uFEFF"+lastCsv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`DeltaBV_LIS_table_${d}.csv`;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  $("copyMsg").textContent="CSV downloaded";
+});
+$("printRep").addEventListener("click",()=>{
+  const Z=getZ();
+  $("printDate").textContent=new Date().toLocaleString();
+  $("printSettings").textContent=`probability ${Z.p}, ${Z.sides===2?"two-sided":"one-sided"}, Z = ${Z.z.toFixed(3)}`;
+  window.print();
+});
+$("copyCsv").addEventListener("click",()=>{
+  const done=()=>{$("copyMsg").textContent="Copied";$("copyFallback").hidden=true;};
+  const fb=()=>{const t=$("copyFallback");t.hidden=false;t.value=lastCsv;t.focus();t.select();$("copyMsg").textContent="Copy the selected text below";};
+  try{navigator.clipboard.writeText(lastCsv).then(done,fb);}catch(e){fb();}
+});
+renderChecks();all();
+})();
+</script>
+
+</body>
+</html>
